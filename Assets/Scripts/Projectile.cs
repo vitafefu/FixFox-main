@@ -48,10 +48,10 @@ public class Projectile : MonoBehaviour
         if (owner == Owner.Player)
         {
             // бьём врага
-            var enemy = other.GetComponentInParent<Bettle>();
-            if (enemy != null)
+            IDamageable dmg = other.GetComponentInParent<IDamageable>();
+            if (dmg != null)
             {
-                enemy.TakeDamage(damage);
+                dmg.TakeDamage(damage);
                 Destroy(gameObject);
                 return;
             }
@@ -69,10 +69,10 @@ public class Projectile : MonoBehaviour
         }
 
         // Стены/земля/платформы — уничтожаем
-        if (other.CompareTag("Wall"))
-        {
-            Destroy(gameObject);
-            return;
-        }
+        //if (other.CompareTag("Ground") || other.CompareTag("Platform") || other.CompareTag("Wall"))
+        //{
+        //    Destroy(gameObject);
+        //    return;
+        //}
     }
 }

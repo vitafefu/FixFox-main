@@ -58,6 +58,7 @@ public class PlayerMelee : MonoBehaviour
         }
     }
 
+    // ✅ вызывай это из Animation Event на клипе атаки
     public void SpawnMeleeHitbox()
     {
         bool left = sr != null && sr.flipX;

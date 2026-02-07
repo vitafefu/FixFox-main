@@ -21,6 +21,7 @@ public class PlayerRespawn : MonoBehaviour
     {
         if (SaveManager.Instance == null)
         {
+            Debug.LogError("SaveManager not found!");
             return;
         }
 
@@ -29,12 +30,14 @@ public class PlayerRespawn : MonoBehaviour
         if (data != null && data.checkpointPosition != Vector3.zero)
         {
             transform.position = data.checkpointPosition + Vector3.up * respawnYOffset;
+            Debug.Log("Respawned above checkpoint");
             return;
         }
 
         if (defaultSpawnPoint != null)
         {
             transform.position = defaultSpawnPoint.position;
+            Debug.Log("Respawned at default spawn point");
         }
     }
 }

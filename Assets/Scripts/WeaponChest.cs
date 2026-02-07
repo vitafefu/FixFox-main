@@ -99,6 +99,8 @@ public class WeaponChest : MonoBehaviour
 
         if (pressEText != null)
             pressEText.SetActive(false);
+
+        Debug.Log("Checkpoint saved (JSON): " + checkpointID);
     }
 
 }

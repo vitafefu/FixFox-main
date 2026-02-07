@@ -5,7 +5,6 @@ public class MeleeHitbox : MonoBehaviour
 {
     public int damage = 2;
     public float lifeTime = 0.08f;
-    public string targetTag = "Enemy";
 
     [Header("Knockback")]
     public bool useKnockback = true;
@@ -25,41 +24,19 @@ public class MeleeHitbox : MonoBehaviour
             direction = dir.normalized;
     }
 
-    private bool loggedOnce = false;
-
     void OnTriggerEnter2D(Collider2D other)
     {
-        if (!loggedOnce)
-        {
-            loggedOnce = true;
-            Debug.Log("HITBOX touched: " + other.name + " tag=" + other.tag);
-        }
+        // 
+        IDamageable dmg = other.GetComponentInParent<IDamageable>();
+        if (dmg == null) return;
 
-        if (!other.CompareTag(targetTag)) return;
-
-        int key = other.attachedRigidbody
-            ? other.attachedRigidbody.GetInstanceID()
-            : other.GetInstanceID();
-
-        if (hitIds.Contains(key)) return;
-        hitIds.Add(key);
-
-        Bettle enemy = other.GetComponentInParent<Bettle>();
-        if (enemy != null)
-        {
-            enemy.TakeDamage(damage);
-        }
+        dmg.TakeDamage(damage);
 
         if (useKnockback)
         {
             Rigidbody2D rb = other.attachedRigidbody;
             if (rb != null)
-            {
-                rb.AddForce(
-                    new Vector2(direction.x * knockbackForce, 0f),
-                    ForceMode2D.Impulse
-                );
-            }
+                rb.AddForce(new Vector2(direction.x * knockbackForce, 0f), ForceMode2D.Impulse);
         }
     }
 }

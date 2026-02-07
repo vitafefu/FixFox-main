@@ -36,5 +36,7 @@ public class PlayerHealth : MonoBehaviour
 
     void Die()
     {
+        Debug.Log("Player Dead");
+        // لاحقًا: أنيميشن موت / إعادة المرحلة
     }
 }

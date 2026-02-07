@@ -28,6 +28,7 @@ public class SaveManager : MonoBehaviour
     {
         string json = JsonUtility.ToJson(data, true);
         File.WriteAllText(savePath, json);
+        Debug.Log("Game saved");
     }
 
     // تحميل الملف
@@ -37,10 +38,12 @@ public class SaveManager : MonoBehaviour
         {
             string json = File.ReadAllText(savePath);
             data = JsonUtility.FromJson<SaveData>(json);
+            Debug.Log("Game loaded");
         }
         else
         {
             data = new SaveData();
+            Debug.Log("New save created");
         }
     }
 
@@ -51,5 +54,6 @@ public class SaveManager : MonoBehaviour
             File.Delete(savePath);
 
         data = new SaveData();
+        Debug.Log("Save reset");
     }
 }

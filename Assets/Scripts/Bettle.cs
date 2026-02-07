@@ -2,7 +2,7 @@
 using System.Collections;
 
 [RequireComponent(typeof(Rigidbody2D))]
-public class Bettle : MonoBehaviour
+public class Bettle : MonoBehaviour, IDamageable
 {
     [Header("Movement")]
     public float speed = 2f;
@@ -38,8 +38,6 @@ public class Bettle : MonoBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
-        if (anim != null && anim.runtimeAnimatorController == null)
-            anim = null;
 
         sr = GetComponent<SpriteRenderer>();
         if (sr == null) sr = GetComponentInChildren<SpriteRenderer>();
@@ -137,7 +135,6 @@ public class Bettle : MonoBehaviour
         {
             // направление по flipX (подстрой если у тебя наоборот)
             Vector2 direction = (sr != null && sr.flipX) ? Vector2.right : Vector2.left;
-            proj.owner = Projectile.Owner.Enemy;
             proj.SetDirection(direction);
         }
     }

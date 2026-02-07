@@ -190,8 +190,8 @@ public class Player_Controller : MonoBehaviour
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
     }
-
     public bool IsGrounded => isGrounded;
     public bool IsClimbing => isClimbing;
-
 }
+
+
