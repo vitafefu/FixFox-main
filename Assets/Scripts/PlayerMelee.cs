@@ -25,6 +25,7 @@ public class PlayerMelee : MonoBehaviour
 
     void Attack()
     {
+
         if (meleePoint == null || hitboxPrefab == null) return;
 
         var go = Instantiate(hitboxPrefab, meleePoint.position, Quaternion.identity);
@@ -34,6 +35,13 @@ public class PlayerMelee : MonoBehaviour
         // направление (влево/вправо) Ч хитбокс зеркалим по игроку
         var sr = GetComponent<SpriteRenderer>();
         bool left = sr != null && sr.flipX;
+        if (hb != null)
+        {
+            hb.damage = damage;
+            hb.SetDirection(left ? Vector2.left : Vector2.right);
+        }
+
         go.transform.localScale = new Vector3(left ? -1f : 1f, 1f, 1f);
+
     }
 }

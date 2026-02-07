@@ -13,8 +13,6 @@ public class Projectile : MonoBehaviour
 
     void Start()
     {
-        Debug.Log($"=== СНАРЯД START: {name} ===");
-
         spawnTime = Time.time;
 
         // 1. Rigidbody
@@ -30,7 +28,6 @@ public class Projectile : MonoBehaviour
         SpriteRenderer sr = GetComponent<SpriteRenderer>();
         if (sr == null)
         {
-            Debug.LogError("НЕТ SPRITE RENDERER! Создаю красный квадрат...");
             sr = gameObject.AddComponent<SpriteRenderer>();
 
             // БОЛЬШОЙ ЯРКИЙ КРАСНЫЙ КВАДРАТ
@@ -63,7 +60,6 @@ public class Projectile : MonoBehaviour
         // 5. Уничтожение через время
         Destroy(gameObject, lifetime);
 
-        Debug.Log($"Снаряд создан в {transform.position}");
     }
 
     void EnableCollider()
@@ -73,18 +69,16 @@ public class Projectile : MonoBehaviour
         {
             col.enabled = true;
             canDamage = true;
-            Debug.Log("Коллайдер включен, можно наносить урон");
         }
     }
 
     void Update()
     {
         // Визуализация в Scene окне
-        Debug.DrawLine(transform.position, transform.position + (Vector3)direction * 1f, Color.yellow);
+       
 
         // Лог позиции каждую секунду
-        if (Time.time - spawnTime > 1f && Time.time - spawnTime < 1.01f)
-            Debug.Log($"Снаряд {name}: pos={transform.position}");
+        if (Time.time - spawnTime > 1f && Time.time - spawnTime < 1.01f) { }
     }
 
     void FixedUpdate()
@@ -98,7 +92,6 @@ public class Projectile : MonoBehaviour
     public void SetDirection(Vector2 newDirection)
     {
         direction = newDirection.normalized;
-        Debug.Log($"Направление: {direction}, speed={speed}");
 
         if (direction.x < 0)
             transform.localScale = new Vector3(-0.5f, 0.5f, 1f);
@@ -110,27 +103,22 @@ public class Projectile : MonoBehaviour
     {
         if (!canDamage)
         {
-            Debug.Log($"Игнорируем столкновение (коллайдер еще отключен): {other.name}");
             return;
         }
 
-        Debug.Log($"=== СНАРЯД ПОПАЛ В: {other.name} (Tag: {other.tag}, Layer: {other.gameObject.layer}) ===");
 
         // Проверяем ВСЕ возможные теги
         if (other.CompareTag("Enemy") || other.CompareTag("Projectile"))
         {
-            Debug.Log("Игнорируем врага/снаряд");
             return;
         }
 
         if (other.CompareTag("Player"))
         {
-            Debug.Log("*** ПОПАЛ В ИГРОКА! ***");
             PlayerHealth playerHealth = other.GetComponent<PlayerHealth>();
             if (playerHealth != null)
             {
                 playerHealth.TakeDamage(damage);
-                Debug.Log("Урон нанесен!");
             }
             Destroy(gameObject);
             return;
@@ -140,18 +128,15 @@ public class Projectile : MonoBehaviour
         if (other.CompareTag("Ground") || other.CompareTag("Platform") ||
             other.CompareTag("Wall") || other.CompareTag("Untagged"))
         {
-            Debug.Log($"Попал в {other.tag}: {other.name}");
             Destroy(gameObject);
             return;
         }
 
         // Любой другой объект
-        Debug.Log($"Попал в неизвестный объект: {other.name}, уничтожаю");
         Destroy(gameObject);
     }
 
     void OnDestroy()
     {
-        Debug.Log($"XXX Снаряд {name} УНИЧТОЖЕН. Прожил: {Time.time - spawnTime:F2} сек XXX");
     }
 }

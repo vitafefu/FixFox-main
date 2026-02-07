@@ -41,7 +41,6 @@ public class Bettle : MonoBehaviour
         if (playerObj != null)
             player = playerObj.transform;
         else
-            Debug.LogError("Не найден игрок!");
 
         // Начинаем с полным таймером
         attackTimer = attackCooldown;
@@ -73,7 +72,6 @@ public class Bettle : MonoBehaviour
             {
                 Attack();
                 attackTimer = attackCooldown;
-                Debug.Log("Жук выстрелил!");
             }
         }
         else
@@ -111,7 +109,6 @@ public class Bettle : MonoBehaviour
 
     void Attack()
     {
-        Debug.Log($"Жук {name} атакует!");
 
         if (anim != null)
             anim.SetTrigger("attack");
@@ -127,8 +124,6 @@ public class Bettle : MonoBehaviour
                 // Направление: куда смотрит жук
                 Vector2 direction = sr.flipX ? Vector2.right : Vector2.left;
                 projScript.SetDirection(direction);
-
-                Debug.Log($"Направление: {direction}");
             }
         }
     }
@@ -159,8 +154,6 @@ public class Bettle : MonoBehaviour
                     direction * 12f,     // Горизонталь (12 - нормально)
                     Mathf.Min(playerRb.velocity.y + 1f, 5f) // Очень маленький подскок
                 );
-
-                Debug.Log($"Отбрасывание: {direction * 12f}, {playerRb.velocity.y}");
             }
         }
     }
