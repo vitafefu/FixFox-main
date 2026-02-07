@@ -50,6 +50,7 @@ public class PlayerShoot : MonoBehaviour
             proj.speed = bulletSpeed;
             proj.damage = damage;
             proj.lifetime = lifetime;
+            proj.owner = Projectile.Owner.Player;
             proj.SetDirection(dir);
         }
     }

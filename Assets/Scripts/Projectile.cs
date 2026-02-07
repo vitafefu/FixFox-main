@@ -2,141 +2,77 @@ using UnityEngine;
 
 public class Projectile : MonoBehaviour
 {
+    public enum Owner { Player, Enemy }
+    [Header("Who fired this projectile?")]
+    public Owner owner = Owner.Player;
+
     public float speed = 8f;
     public int damage = 1;
     public float lifetime = 1f;
 
     private Vector2 direction;
     private Rigidbody2D rb;
-    private float spawnTime;
-    private bool canDamage = false; // Защита от мгновенного попадания
 
-    void Start()
+    void Awake()
     {
-        spawnTime = Time.time;
-
-        // 1. Rigidbody
         rb = GetComponent<Rigidbody2D>();
-        if (rb == null)
-        {
-            rb = gameObject.AddComponent<Rigidbody2D>();
-        }
+        if (rb == null) rb = gameObject.AddComponent<Rigidbody2D>();
         rb.bodyType = RigidbodyType2D.Kinematic;
         rb.gravityScale = 0f;
 
-        // 2. Визуализация
-        SpriteRenderer sr = GetComponent<SpriteRenderer>();
-        if (sr == null)
-        {
-            sr = gameObject.AddComponent<SpriteRenderer>();
-
-            // БОЛЬШОЙ ЯРКИЙ КРАСНЫЙ КВАДРАТ
-            Texture2D tex = new Texture2D(64, 64);
-            for (int x = 0; x < 64; x++)
-                for (int y = 0; y < 64; y++)
-                    tex.SetPixel(x, y, Color.red);
-            tex.Apply();
-
-            sr.sprite = Sprite.Create(tex, new Rect(0, 0, 64, 64), new Vector2(0.5f, 0.5f));
-            sr.color = new Color(1, 0, 0, 1); // 100% непрозрачный
-            transform.localScale = new Vector3(0.5f, 0.5f, 1f);
-        }
-
-        sr.sortingOrder = 999; // Поверх всего
-
-        // 3. Коллайдер
-        CircleCollider2D col = GetComponent<CircleCollider2D>();
-        if (col == null)
-        {
-            col = gameObject.AddComponent<CircleCollider2D>();
-        }
+        var col = GetComponent<Collider2D>();
+        if (col == null) col = gameObject.AddComponent<CircleCollider2D>();
         col.isTrigger = true;
-        col.radius = 0.2f;
 
-        // 4. ВРЕМЕННО ОТКЛЮЧАЕМ КОЛЛАЙДЕР на 0.1 секунду!
-        col.enabled = false;
-        Invoke("EnableCollider", 0.1f);
-
-        // 5. Уничтожение через время
         Destroy(gameObject, lifetime);
-
-    }
-
-    void EnableCollider()
-    {
-        Collider2D col = GetComponent<Collider2D>();
-        if (col != null)
-        {
-            col.enabled = true;
-            canDamage = true;
-        }
-    }
-
-    void Update()
-    {
-        // Визуализация в Scene окне
-       
-
-        // Лог позиции каждую секунду
-        if (Time.time - spawnTime > 1f && Time.time - spawnTime < 1.01f) { }
     }
 
     void FixedUpdate()
     {
-        if (rb != null && direction != Vector2.zero)
-        {
+        if (direction != Vector2.zero)
             rb.velocity = direction * speed;
-        }
     }
 
     public void SetDirection(Vector2 newDirection)
     {
         direction = newDirection.normalized;
-
-        if (direction.x < 0)
-            transform.localScale = new Vector3(-0.5f, 0.5f, 1f);
-        else
-            transform.localScale = new Vector3(0.5f, 0.5f, 1f);
     }
 
     void OnTriggerEnter2D(Collider2D other)
     {
-        if (!canDamage)
-        {
-            return;
-        }
+        // Игнор своих
+        if (owner == Owner.Player && other.CompareTag("Player")) return;
+        if (owner == Owner.Enemy && other.CompareTag("Enemy")) return;
 
-
-        // Проверяем ВСЕ возможные теги
-        if (other.CompareTag("Enemy") || other.CompareTag("Projectile"))
+        // Попадание по цели
+        if (owner == Owner.Player)
         {
-            return;
-        }
-
-        if (other.CompareTag("Player"))
-        {
-            PlayerHealth playerHealth = other.GetComponent<PlayerHealth>();
-            if (playerHealth != null)
+            // бьём врага
+            var enemy = other.GetComponentInParent<Bettle>();
+            if (enemy != null)
             {
-                playerHealth.TakeDamage(damage);
+                enemy.TakeDamage(damage);
+                Destroy(gameObject);
+                return;
             }
-            Destroy(gameObject);
-            return;
+        }
+        else // Owner.Enemy
+        {
+            // бьём игрока
+            var ph = other.GetComponent<PlayerHealth>();
+            if (ph != null)
+            {
+                ph.TakeDamage(damage);
+                Destroy(gameObject);
+                return;
+            }
         }
 
-        // Проверяем ВСЕ возможные теги для земли
-        if (other.CompareTag("Ground") || other.CompareTag("Platform") ||
-            other.CompareTag("Wall") || other.CompareTag("Untagged"))
+        // Стены/земля/платформы — уничтожаем
+        if (other.CompareTag("Wall"))
         {
             Destroy(gameObject);
             return;
         }
-
-        // Любой другой объект
-        Destroy(gameObject);
-    }
-
-    void OnDestroy()
-    {
     }
 }

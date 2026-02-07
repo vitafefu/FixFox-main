@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 
+[RequireComponent(typeof(Rigidbody2D))]
 public class Bettle : MonoBehaviour
 {
     [Header("Movement")]
@@ -13,8 +14,11 @@ public class Bettle : MonoBehaviour
     public Transform firePoint;
     public float attackRange = 5f;
     public float attackCooldown = 2f;
+
+    [Header("Contact damage")]
     public int contactDamage = 1;
-    public float knockbackForce = 15f;
+    public float playerKnockbackX = 12f;
+    public float playerKnockbackY = 1f;
     public float knockbackDuration = 0.3f;
 
     [Header("Health")]
@@ -22,160 +26,173 @@ public class Bettle : MonoBehaviour
 
     private Vector2 startPos;
     private bool movingRight;
+
     private SpriteRenderer sr;
-    private Transform player;
-    private float attackTimer;
     private Rigidbody2D rb;
     private Animator anim;
+    private Transform player;
+
+    private float attackTimer;
+
+    void Awake()
+    {
+        rb = GetComponent<Rigidbody2D>();
+        anim = GetComponent<Animator>();
+        if (anim != null && anim.runtimeAnimatorController == null)
+            anim = null;
+
+        sr = GetComponent<SpriteRenderer>();
+        if (sr == null) sr = GetComponentInChildren<SpriteRenderer>();
+
+        startPos = transform.position;
+        movingRight = startMovingRight;
+        attackTimer = attackCooldown;
+    }
 
     void Start()
     {
-        startPos = transform.position;
-        movingRight = startMovingRight;
-        sr = GetComponent<SpriteRenderer>();
-        rb = GetComponent<Rigidbody2D>();
-        anim = GetComponent<Animator>();
+        FindPlayer();
+    }
 
-        // Найти игрока
+    void FindPlayer()
+    {
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-        if (playerObj != null)
-            player = playerObj.transform;
-        else
-
-        // Начинаем с полным таймером
-        attackTimer = attackCooldown;
+        player = playerObj != null ? playerObj.transform : null;
     }
 
     void Update()
     {
-        if (player == null) return;
+        if (player == null)
+        {
+            // если игрок появился позже (respawn/scene load) — попробуем найти
+            FindPlayer();
+            if (player == null) return;
+        }
 
-        float distanceToPlayer = Vector2.Distance(transform.position, player.position);
-
+        float dist = Vector2.Distance(transform.position, player.position);
         attackTimer -= Time.deltaTime;
 
-        if (distanceToPlayer <= attackRange)
+        if (dist <= attackRange)
         {
-            // Останавливаемся
-            rb.velocity = Vector2.zero;
+            StopMove();
+            FaceToPlayer();
 
-            // Поворачиваемся к игроку
-            bool playerIsRight = player.position.x > transform.position.x;
-            sr.flipX = playerIsRight;
+            if (anim != null) anim.SetBool("isAttacking", true);
 
-            // Анимация
-            if (anim != null)
-                anim.SetBool("isAttacking", true);
-
-            // Стреляем
             if (attackTimer <= 0f)
             {
-                Attack();
+                Shoot();
                 attackTimer = attackCooldown;
             }
         }
         else
         {
-            // Патрулируем
+            if (anim != null) anim.SetBool("isAttacking", false);
             Patrol();
-
-            if (anim != null)
-            {
-                anim.SetBool("isAttacking", false);
-                anim.SetFloat("speed", Mathf.Abs(rb.velocity.x));
-            }
         }
+
+        if (anim != null)
+            anim.SetFloat("speed", Mathf.Abs(rb.velocity.x));
+    }
+
+    void StopMove()
+    {
+        rb.velocity = new Vector2(0f, rb.velocity.y);
+    }
+
+    void FaceToPlayer()
+    {
+        bool playerIsRight = player.position.x > transform.position.x;
+
+        // flipX: подстрой под свой спрайт (если надо — инвертнёшь)
+        if (sr != null) sr.flipX = playerIsRight;
     }
 
     void Patrol()
     {
-        if (movingRight)
-        {
-            rb.velocity = new Vector2(speed, rb.velocity.y);
-            sr.flipX = true;
+        float dir = movingRight ? 1f : -1f;
+        rb.velocity = new Vector2(dir * speed, rb.velocity.y);
 
-            if (transform.position.x >= startPos.x + patrolDistance)
-                movingRight = false;
-        }
-        else
-        {
-            rb.velocity = new Vector2(-speed, rb.velocity.y);
-            sr.flipX = false;
+        // визуальный поворот при патруле
+        if (sr != null) sr.flipX = movingRight;
 
-            if (transform.position.x <= startPos.x - patrolDistance)
-                movingRight = true;
-        }
+        if (movingRight && transform.position.x >= startPos.x + patrolDistance)
+            movingRight = false;
+
+        if (!movingRight && transform.position.x <= startPos.x - patrolDistance)
+            movingRight = true;
     }
 
-    void Attack()
+    void Shoot()
     {
+        if (anim != null) anim.SetTrigger("attack");
 
-        if (anim != null)
-            anim.SetTrigger("attack");
+        if (projectilePrefab == null || firePoint == null) return;
 
-        if (projectilePrefab != null && firePoint != null)
+        GameObject projectile = Instantiate(projectilePrefab, firePoint.position, Quaternion.identity);
+        projectile.name = "Bullet_" + Time.time;
+
+        Projectile proj = projectile.GetComponent<Projectile>();
+        if (proj != null)
         {
-            GameObject projectile = Instantiate(projectilePrefab, firePoint.position, Quaternion.identity);
-            projectile.name = "Bullet_" + Time.time;
-
-            Projectile projScript = projectile.GetComponent<Projectile>();
-            if (projScript != null)
-            {
-                // Направление: куда смотрит жук
-                Vector2 direction = sr.flipX ? Vector2.right : Vector2.left;
-                projScript.SetDirection(direction);
-            }
+            // направление по flipX (подстрой если у тебя наоборот)
+            Vector2 direction = (sr != null && sr.flipX) ? Vector2.right : Vector2.left;
+            proj.owner = Projectile.Owner.Enemy;
+            proj.SetDirection(direction);
         }
     }
 
     void OnCollisionEnter2D(Collision2D collision)
     {
-        if (collision.gameObject.CompareTag("Player"))
+        if (!collision.gameObject.CompareTag("Player")) return;
+
+        collision.gameObject.GetComponent<PlayerHealth>()?.TakeDamage(contactDamage);
+
+        Player_Controller pc = collision.gameObject.GetComponent<Player_Controller>();
+        if (pc != null)
         {
-            // Урон
-            collision.gameObject.GetComponent<PlayerHealth>()?.TakeDamage(contactDamage);
+            pc.isKnockedBack = true;
+            StartCoroutine(EnableControl(pc));
+        }
 
-            // Отключить управление
-            Player_Controller playerCtrl = collision.gameObject.GetComponent<Player_Controller>();
-            if (playerCtrl != null)
-            {
-                playerCtrl.isKnockedBack = true;
-                StartCoroutine(EnableControl(playerCtrl));
-            }
-
-            // Отбрасывание
-            Rigidbody2D playerRb = collision.gameObject.GetComponent<Rigidbody2D>();
-            if (playerRb != null)
-            {
-                float direction = (collision.transform.position.x > transform.position.x) ? 1f : -1f;
-
-                // ЧИСТО ГОРИЗОНТАЛЬНО с МИНИМУМОМ вертикали
-                playerRb.velocity = new Vector2(
-                    direction * 12f,     // Горизонталь (12 - нормально)
-                    Mathf.Min(playerRb.velocity.y + 1f, 5f) // Очень маленький подскок
-                );
-            }
+        Rigidbody2D playerRb = collision.gameObject.GetComponent<Rigidbody2D>();
+        if (playerRb != null)
+        {
+            float dir = (collision.transform.position.x > transform.position.x) ? 1f : -1f;
+            playerRb.velocity = new Vector2(
+                dir * playerKnockbackX,
+                Mathf.Min(playerRb.velocity.y + playerKnockbackY, 5f)
+            );
         }
     }
 
     IEnumerator EnableControl(Player_Controller playerCtrl)
     {
         yield return new WaitForSeconds(knockbackDuration);
-        playerCtrl.isKnockedBack = false;
+        if (playerCtrl != null) playerCtrl.isKnockedBack = false;
     }
 
-    public void TakeDamage(int damage)
+    public void TakeDamage(int dmg)
     {
-        health -= damage;
-        if (health <= 0) Die();
-        else StartCoroutine(DamageFlash());
+        health -= dmg;
+
+        if (health <= 0)
+        {
+            Die();
+            return;
+        }
+
+        StartCoroutine(DamageFlash());
     }
 
     IEnumerator DamageFlash()
     {
+        if (sr == null) yield break;
+
+        Color old = sr.color;
         sr.color = Color.red;
         yield return new WaitForSeconds(0.1f);
-        sr.color = Color.white;
+        if (sr != null) sr.color = old;
     }
 
     void Die()

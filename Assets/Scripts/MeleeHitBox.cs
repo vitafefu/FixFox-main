@@ -25,8 +25,16 @@ public class MeleeHitbox : MonoBehaviour
             direction = dir.normalized;
     }
 
+    private bool loggedOnce = false;
+
     void OnTriggerEnter2D(Collider2D other)
     {
+        if (!loggedOnce)
+        {
+            loggedOnce = true;
+            Debug.Log("HITBOX touched: " + other.name + " tag=" + other.tag);
+        }
+
         if (!other.CompareTag(targetTag)) return;
 
         int key = other.attachedRigidbody
