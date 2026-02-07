@@ -6,27 +6,41 @@ public class WeaponSwitch : MonoBehaviour
     [Serializable]
     public class WeaponSlot
     {
-        public string name;                 // "Pistol"
-        public GameObject weaponVisualPrefab;
-        public GameObject bulletPrefab;
+        public string name;
 
-        [Header("Shoot params")]
+        [Header("Visual")]
+        public GameObject weaponVisualPrefab;
+
+        [Header("Type")]
+        public bool isMelee;
+
+        [Header("Ranged")]
+        public GameObject bulletPrefab;
         public float fireRate = 6f;
         public float bulletSpeed = 10f;
         public int damage = 1;
         public float lifetime = 3f;
 
-        public bool isMelee;
+        [Header("Melee")]
         public int meleeDamage = 2;
         public float meleeCooldown = 0.25f;
         public GameObject meleeHitboxPrefab;
 
+        [Header("Offsets (LOCAL, for RIGHT-facing)")]
+        public Vector2 firePointLocalOffset;
+        public Vector2 weaponLocalOffset;
     }
 
-    public Transform weaponVisualRoot;      // Weapon Socket/WeaponVisualRoot
-    public PlayerShoot shooter;             // твой PlayerShoot
+    [Header("Scene links (auto-find if empty)")]
+    public Transform weaponVisualRoot;   // Weapon Socket/WeaponVisualRoot
+    public Transform firePoint;          // Weapon Socket/FirePoint
+    public PlayerShoot shooter;          // on Player
+    public PlayerMelee melee;            // on Player (optional)
+
+    [Header("Weapons")]
     public WeaponSlot[] weapons;
 
+    [Header("Input")]
     public KeyCode nextKey = KeyCode.Q;
     public KeyCode prevKey = KeyCode.E;
 
@@ -36,29 +50,39 @@ public class WeaponSwitch : MonoBehaviour
     void Awake()
     {
         if (shooter == null) shooter = GetComponent<PlayerShoot>();
+        if (melee == null) melee = GetComponent<PlayerMelee>();
+
         if (weaponVisualRoot == null)
         {
             var t = transform.Find("Weapon Socket/WeaponVisualRoot");
             if (t != null) weaponVisualRoot = t;
         }
+
+        if (firePoint == null)
+        {
+            var t = transform.Find("Weapon Socket/FirePoint");
+            if (t != null) firePoint = t;
+        }
     }
 
     void Start()
     {
-        Equip(0);
+        if (weapons != null && weapons.Length > 0)
+            Equip(0);
     }
 
     void Update()
     {
         if (weapons == null || weapons.Length == 0) return;
 
-        // 1-4 быстрый выбор
+        // 1-4 quick select
         if (Input.GetKeyDown(KeyCode.Alpha1)) Equip(0);
         if (Input.GetKeyDown(KeyCode.Alpha2)) Equip(1);
         if (Input.GetKeyDown(KeyCode.Alpha3)) Equip(2);
         if (Input.GetKeyDown(KeyCode.Alpha4)) Equip(3);
+        if (Input.GetKeyDown(KeyCode.Alpha5)) Equip(4);
 
-        // Q/E листание
+        // Q/E cycle
         if (Input.GetKeyDown(nextKey)) Equip((index + 1) % weapons.Length);
         if (Input.GetKeyDown(prevKey)) Equip((index - 1 + weapons.Length) % weapons.Length);
     }
@@ -69,39 +93,33 @@ public class WeaponSwitch : MonoBehaviour
         if (newIndex < 0 || newIndex >= weapons.Length) return;
 
         index = newIndex;
-
-        // Удаляем старый визуал
-        if (currentVisual != null) Destroy(currentVisual);
-
         var w = weapons[index];
 
-        // Ставим новый визуал
+        // 1) Replace visual
+        if (currentVisual != null) Destroy(currentVisual);
+        currentVisual = null;
+
         if (weaponVisualRoot != null && w.weaponVisualPrefab != null)
         {
             currentVisual = Instantiate(w.weaponVisualPrefab, weaponVisualRoot);
-            currentVisual.transform.localPosition = Vector3.zero;
             currentVisual.transform.localRotation = Quaternion.identity;
             currentVisual.transform.localScale = Vector3.one;
+            currentVisual.transform.localPosition = w.weaponLocalOffset; // БЕЗ зеркала
         }
 
-        // Обновляем стрельбу
-        if (shooter != null)
-        {
-            shooter.bulletPrefab = w.bulletPrefab;
-            shooter.fireRate = w.fireRate;
-            shooter.bulletSpeed = w.bulletSpeed;
-            shooter.damage = w.damage;
-            shooter.lifetime = w.lifetime;
-        }
+        // 2) FirePoint offset (БЕЗ зеркала)
+        if (firePoint != null)
+            firePoint.localPosition = w.firePointLocalOffset;
 
-        var melee = GetComponent<PlayerMelee>();
-
+        // 3) Enable correct combat mode
         if (w.isMelee)
         {
-            // выключаем стрельбу
-            if (shooter != null) shooter.enabled = false;
+            if (shooter != null)
+            {
+                shooter.enabled = false;
+                shooter.bulletPrefab = null;
+            }
 
-            // включаем ближний бой
             if (melee != null)
             {
                 melee.enabled = true;
@@ -112,19 +130,17 @@ public class WeaponSwitch : MonoBehaviour
         }
         else
         {
-            // включаем стрельбу
-            if (shooter != null) shooter.enabled = true;
-
-            // выключаем ближний бой
             if (melee != null) melee.enabled = false;
 
-            // выставляем параметры шутера как раньше
-            shooter.bulletPrefab = w.bulletPrefab;
-            shooter.fireRate = w.fireRate;
-            shooter.bulletSpeed = w.bulletSpeed;
-            shooter.damage = w.damage;
-            shooter.lifetime = w.lifetime;
+            if (shooter != null)
+            {
+                shooter.enabled = true;
+                shooter.bulletPrefab = w.bulletPrefab;
+                shooter.fireRate = w.fireRate;
+                shooter.bulletSpeed = w.bulletSpeed;
+                shooter.damage = w.damage;
+                shooter.lifetime = w.lifetime;
+            }
         }
-
     }
 }
