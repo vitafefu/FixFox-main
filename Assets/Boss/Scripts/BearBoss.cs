@@ -2,202 +2,183 @@ using UnityEngine;
 using System.Collections;
 
 public class BearBoss : MonoBehaviour, IDamageable
-
 {
-    // ====================== ПАРАМЕТРЫ ДВИЖЕНИЯ ======================
-    [Header("Движение")]
-    public float speed = 1.5f;              // Скорость медведя
-    public float patrolDistance = 6f;       // Дистанция патрулирования
-    public bool startMovingRight = true;    // Начинает движение вправо
+    [Header("Movement")]
+    public float speed = 1.5f;
+    public float patrolDistance = 6f;
+    public bool startMovingRight = true;
 
-    // ====================== ПАРАМЕТРЫ АТАКИ ======================
-    [Header("Атака")]
-    public float attackRange = 3f;          // Дистанция обнаружения игрока
-    public float attackCooldown = 1.5f;     // Перезарядка между атаками
-    public int contactDamage = 1;           // Урон при касании игрока
+    [Header("Detect/Attack")]
+    public float attackRange = 3f;
+    public float attackCooldown = 1.5f;
+    public int contactDamage = 1;
 
-    [Header("Отбрасывание")]
-    public float knockbackForce = 12f;      // Сила отбрасывания игрока
-    public float knockbackDuration = 0.3f;  // Длительность отбрасывания
+    [Header("Knockback player")]
+    public float knockbackForce = 12f;
+    public float knockbackDuration = 0.3f;
 
-    // ====================== ПАРАМЕТРЫ ЗДОРОВЬЯ ======================
-    [Header("Здоровье")]
-    public int health = 50;                // Здоровье медведя
+    [Header("Health")]
+    public int maxHealth = 50;
 
-    // ====================== ПРИВАТНЫЕ ПЕРЕМЕННЫЕ ======================
-    private Vector2 startPos;               // Стартовая позиция для патрулирования
-    private bool movingRight;               // Направление движения
-    private SpriteRenderer sr;              // Для поворота спрайта
-    private Transform player;               // Ссылка на игрока
-    private float attackTimer;              // Таймер для атаки
-    private Rigidbody2D rb;                 // Физическое тело
-    private Animator anim;                  // Аниматор
+    [Header("Animation params (optional)")]
+    public string paramIsAttacking = "isAttacking";
+    public string paramSpeed = "speed";
+    public string triggerAttack = "attack";
 
-    // ====================== НАЧАЛЬНАЯ ИНИЦИАЛИЗАЦИЯ ======================
-    void Start()
+    int health;
+
+    Vector2 startPos;
+    bool movingRight;
+
+    SpriteRenderer sr;
+    Rigidbody2D rb;
+    Animator anim;
+    Transform player;
+
+    float attackTimer;
+
+    void Awake()
     {
-        // Сохраняем стартовую позицию для патрулирования
-        startPos = transform.position;
-        movingRight = startMovingRight;
-
-        // Получаем компоненты с объекта
         sr = GetComponent<SpriteRenderer>();
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
 
-        // Ищем игрока по тегу
-        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-        if (playerObj != null)
-            player = playerObj.transform;
-        else
-            Debug.LogError("Не найден игрок!");
-
-        // Начинаем с полным таймером атаки
-        attackTimer = attackCooldown;
+        health = maxHealth;
     }
 
-    // ====================== ОСНОВНОЙ ЦИКЛ ОБНОВЛЕНИЯ ======================
+    void Start()
+    {
+        startPos = transform.position;
+        movingRight = startMovingRight;
+
+        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+        if (playerObj != null) player = playerObj.transform;
+
+        attackTimer = 0f;
+    }
+
     void Update()
     {
-        // Если игрок не найден - выходим
-        if (player == null) return;
+        if (!player) { Patrol(); return; }
 
-        // Вычисляем дистанцию до игрока
-        float distanceToPlayer = Vector2.Distance(transform.position, player.position);
-
-        // Уменьшаем таймер атаки
+        float dist = Vector2.Distance(transform.position, player.position);
         attackTimer -= Time.deltaTime;
 
-        // Если игрок в радиусе атаки
-        if (distanceToPlayer <= attackRange)
+        if (dist <= attackRange)
         {
-            // ОСТАНОВКА ДВИЖЕНИЯ - медведь останавливается при обнаружении
-            rb.velocity = Vector2.zero;
+            // стоп и поворот
+            rb.velocity = new Vector2(0f, rb.velocity.y);
 
-            // ПОВОРОТ К ИГРОКУ - смотрим в сторону игрока
             bool playerIsRight = player.position.x > transform.position.x;
-            sr.flipX = playerIsRight;
+            if (sr) sr.flipX = playerIsRight;
 
-            // АНИМАЦИЯ АТАКИ - включаем анимацию атаки, выключаем ходьбу
-            if (anim != null)
-            {
-                anim.SetBool("isAttacking", true);
-                anim.SetFloat("speed", 0);
-            }
+            // анимации (если есть)
+            if (anim && !string.IsNullOrEmpty(paramIsAttacking))
+                anim.SetBool(paramIsAttacking, true);
+            if (anim && !string.IsNullOrEmpty(paramSpeed))
+                anim.SetFloat(paramSpeed, 0f);
 
-            // БЛИЖНЯЯ АТАКА - если перезарядка прошла
+            // атака по кд
             if (attackTimer <= 0f)
             {
-                // Можно добавить логику ближней атаки здесь
-                Debug.Log("Медведь атакует!");
                 attackTimer = attackCooldown;
+
+                if (anim && !string.IsNullOrEmpty(triggerAttack))
+                    anim.SetTrigger(triggerAttack);
+
+                // САМА ближняя атака у тебя сейчас = контактный урон в OnCollisionEnter2D
+                // Тут просто синхроним с анимацией/кд.
             }
         }
         else
         {
-            // ПАТРУЛИРОВАНИЕ - если игрок далеко
+            // патруль
             Patrol();
 
-            // АНИМАЦИЯ ПЕРЕДВИЖЕНИЯ - выключаем атаку, включаем ходьбу
-            if (anim != null)
-            {
-                anim.SetBool("isAttacking", false);
-                anim.SetFloat("speed", Mathf.Abs(rb.velocity.x));
-            }
+            if (anim && !string.IsNullOrEmpty(paramIsAttacking))
+                anim.SetBool(paramIsAttacking, false);
+            if (anim && !string.IsNullOrEmpty(paramSpeed))
+                anim.SetFloat(paramSpeed, Mathf.Abs(rb.velocity.x));
         }
     }
-    // ====================== ПАТРУЛИРОВАНИЕ ======================
+
     void Patrol()
     {
-        // Движение вправо
+        if (!rb) return;
+
         if (movingRight)
         {
             rb.velocity = new Vector2(speed, rb.velocity.y);
-            sr.flipX = true;  // Спрайт смотрит вправо
+            if (sr) sr.flipX = true;
 
-            // Если достигли правой границы - разворачиваемся
             if (transform.position.x >= startPos.x + patrolDistance)
                 movingRight = false;
         }
-        // Движение влево
         else
         {
             rb.velocity = new Vector2(-speed, rb.velocity.y);
-            sr.flipX = false; // Спрайт смотрит влево
+            if (sr) sr.flipX = false;
 
-            // Если достигли левой границы - разворачиваемся
             if (transform.position.x <= startPos.x - patrolDistance)
                 movingRight = true;
         }
+
+        if (anim && !string.IsNullOrEmpty(paramSpeed))
+            anim.SetFloat(paramSpeed, Mathf.Abs(rb.velocity.x));
     }
 
-    // ====================== СТОЛКНОВЕНИЕ С ИГРОКОМ ======================
     void OnCollisionEnter2D(Collision2D collision)
     {
-        // Если столкнулись с игроком
-        if (collision.gameObject.CompareTag("Player"))
+        if (!collision.gameObject.CompareTag("Player")) return;
+
+        collision.gameObject.GetComponent<PlayerHealth>()?.TakeDamage(contactDamage);
+
+        Player_Controller pc = collision.gameObject.GetComponent<Player_Controller>();
+        if (pc != null)
         {
-            // НАНОСИМ УРОН ИГРОКУ
-            collision.gameObject.GetComponent<PlayerHealth>()?.TakeDamage(contactDamage);
+            pc.isKnockedBack = true;
+            StartCoroutine(EnableControl(pc));
+        }
 
-            // ОТКЛЮЧАЕМ УПРАВЛЕНИЕ ИГРОКА (отбрасывание)
-            Player_Controller playerCtrl = collision.gameObject.GetComponent<Player_Controller>();
-            if (playerCtrl != null)
-            {
-                playerCtrl.isKnockedBack = true;
-                StartCoroutine(EnableControl(playerCtrl));
-            }
-
-            // ОТБРАСЫВАЕМ ИГРОКА
-            Rigidbody2D playerRb = collision.gameObject.GetComponent<Rigidbody2D>();
-            if (playerRb != null)
-            {
-                // Определяем направление отбрасывания
-                float direction = (collision.transform.position.x > transform.position.x) ? 1f : -1f;
-
-                // Чисто горизонтальное отбрасывание с небольшим подскоком
-                playerRb.velocity = new Vector2(
-                    direction * knockbackForce,    // Горизонтальная сила
-                    Mathf.Min(playerRb.velocity.y + 1f, 5f) // Небольшой вертикальный толчок
-                );
-            }
+        Rigidbody2D prb = collision.gameObject.GetComponent<Rigidbody2D>();
+        if (prb != null)
+        {
+            float dir = (collision.transform.position.x > transform.position.x) ? 1f : -1f;
+            prb.velocity = new Vector2(dir * knockbackForce, Mathf.Min(prb.velocity.y + 1f, 5f));
         }
     }
 
-    // ====================== ВОЗВРАТ УПРАВЛЕНИЯ ИГРОКУ ======================
-    IEnumerator EnableControl(Player_Controller playerCtrl)
+    IEnumerator EnableControl(Player_Controller pc)
     {
         yield return new WaitForSeconds(knockbackDuration);
-        playerCtrl.isKnockedBack = false;
+        if (pc != null) pc.isKnockedBack = false;
     }
 
-    // ====================== ПОЛУЧЕНИЕ УРОНА ======================
+    // ===== IDamageable =====
     public void TakeDamage(int damage)
     {
-        // Уменьшаем здоровье
         health -= damage;
-
-        // Если здоровье закончилось - умираем
         if (health <= 0)
+        {
             Die();
+        }
         else
-            StartCoroutine(DamageFlash()); // Эффект получения урона
+        {
+            if (sr != null) StartCoroutine(DamageFlash());
+        }
     }
 
-    // ====================== ЭФФЕКТ ПОЛУЧЕНИЯ УРОНА (мигание красным) ======================
     IEnumerator DamageFlash()
     {
-        sr.color = Color.red;      // Красим в красный
-        yield return new WaitForSeconds(0.1f);
-        sr.color = Color.white;    // Возвращаем обычный цвет
+        if (!sr) yield break;
+        sr.color = Color.red;
+        yield return new WaitForSeconds(0.08f);
+        if (sr) sr.color = Color.white;
     }
 
-    // ====================== СМЕРТЬ МЕДВЕДЯ ======================
     void Die()
     {
-        Debug.Log("Медведь побежден!");
-        // Пока просто уничтожаем объект
-        // Позже можно добавить анимацию смерти
+        // тут можно: дроп, звук, анимация смерти
         Destroy(gameObject);
     }
 }
