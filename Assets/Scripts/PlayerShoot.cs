@@ -2,13 +2,27 @@ using UnityEngine;
 
 public class PlayerShoot : MonoBehaviour
 {
+    Rigidbody2D rb;
+    Player_Controller controller;
+
     [Header("Links")]
     public Transform firePoint;
     public GameObject bulletPrefab;
-    public SpriteRenderer playerSprite; // <- назначь сюда спрайт лисы (который реально flipX)
+    public SpriteRenderer playerSprite;
 
     [Header("Shoot params")]
     public float fireRate = 6f;
+
+    [Header("Accuracy")]
+    public float baseSpread = 0f;          // идеальна€ точность
+    public float maxSpread = 18f;           // максимальный угол
+    public float spreadIncrease = 1.95f;    // рост за выстрел
+    public float spreadRecovery = 5f;       // восстановление в секунду
+
+    [Header("Movement spread")]
+    public float moveSpread = 14f;      // доп. разброс при беге
+    public float airSpread = 17f;      // доп. разброс в прыжке
+    public float moveSpeedThreshold = 0.1f;
 
     [Header("Optional override (если хочешь общие параметры)")]
     public bool overrideProjectileStats = true;
@@ -18,11 +32,16 @@ public class PlayerShoot : MonoBehaviour
 
     private float nextShotTime;
 
+    float currentSpread = 0f;
+
     void Awake()
     {
         // если не назначил Ч попробуем найти на себе или в дет€х
         if (playerSprite == null) playerSprite = GetComponent<SpriteRenderer>();
         if (playerSprite == null) playerSprite = GetComponentInChildren<SpriteRenderer>();
+        rb = GetComponent<Rigidbody2D>();
+        controller = GetComponent<Player_Controller>();
+
     }
 
     void Update()
@@ -32,6 +51,27 @@ public class PlayerShoot : MonoBehaviour
             Shoot();
             nextShotTime = Time.time + 1f / Mathf.Max(0.01f, fireRate);
         }
+        float targetSpread = baseSpread;
+
+        // бег
+        if (rb != null && Mathf.Abs(rb.velocity.x) > moveSpeedThreshold)
+        {
+            targetSpread += moveSpread;
+        }
+
+        // прыжок
+        if (controller != null && !controller.IsGrounded)
+        {
+            targetSpread += airSpread;
+        }
+
+        // плавно т€нем currentSpread к нужному
+        currentSpread = Mathf.MoveTowards(
+            currentSpread,
+            targetSpread,
+            spreadRecovery * Time.deltaTime
+        );
+
     }
 
     void Shoot()
@@ -41,12 +81,19 @@ public class PlayerShoot : MonoBehaviour
         GameObject bullet = Instantiate(bulletPrefab, firePoint.position, Quaternion.identity);
 
         bool facingLeft = playerSprite != null && playerSprite.flipX;
-        Vector2 dir = facingLeft ? Vector2.left : Vector2.right;
+
+        Vector2 baseDir = facingLeft ? Vector2.left : Vector2.right;
+
+        float spread = Random.Range(-currentSpread, currentSpread);
+        Vector2 dir = Quaternion.Euler(0, 0, spread) * baseDir;
+
+        // накапливаем разброс за выстрел
+        currentSpread += spreadIncrease;
+        currentSpread = Mathf.Clamp(currentSpread, baseSpread, maxSpread);
 
         Projectile proj = bullet.GetComponent<Projectile>();
         if (proj != null)
         {
-            // ¬—≈√ƒј берЄм из PlayerShoot (а значит из WeaponSwitch)
             proj.speed = bulletSpeed;
             proj.damage = damage;
             proj.lifetime = lifetime;
@@ -54,4 +101,5 @@ public class PlayerShoot : MonoBehaviour
             proj.SetDirection(dir);
         }
     }
+
 }

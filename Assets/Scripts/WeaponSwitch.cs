@@ -29,6 +29,15 @@ public class WeaponSwitch : MonoBehaviour
         [Header("Offsets (LOCAL, for RIGHT-facing)")]
         public Vector2 firePointLocalOffset;
         public Vector2 weaponLocalOffset;
+
+        public bool isHybrid;
+        public GameObject hybridProjectilePrefab;
+        public int hybridMeleeDamage = 2;
+        public float hybridShootDelay = 0.08f;
+        public float hybridBulletSpeed = 10f;
+        public int hybridBulletDamage = 1;
+        public float hybridBulletLifetime = 1.2f;
+        public float hybridCooldown = 0.5f;
     }
 
     [Header("Scene links (auto-find if empty)")]
@@ -46,6 +55,8 @@ public class WeaponSwitch : MonoBehaviour
 
     private int index = 0;
     private GameObject currentVisual;
+    public PlayerStaff staff;
+
 
     void Awake()
     {
@@ -63,6 +74,8 @@ public class WeaponSwitch : MonoBehaviour
             var t = transform.Find("Weapon Socket/FirePoint");
             if (t != null) firePoint = t;
         }
+        if (staff == null) staff = GetComponent<PlayerStaff>();
+
     }
 
     void Start()
@@ -110,6 +123,40 @@ public class WeaponSwitch : MonoBehaviour
         // 2) FirePoint offset (БЕЗ зеркала)
         if (firePoint != null)
             firePoint.localPosition = w.firePointLocalOffset;
+
+        if (w.isHybrid)
+        {
+            if (shooter != null)
+            {
+                shooter.enabled = false;
+                shooter.bulletPrefab = null;
+            }
+
+            if (melee != null)
+                melee.enabled = false;
+
+            if (staff != null)
+            {
+                staff.enabled = true;
+                if (shooter != null) shooter.enabled = false;
+
+                staff.hitboxPrefab = w.meleeHitboxPrefab;
+                staff.meleeDamage = w.meleeDamage;
+
+                staff.projectilePrefab = w.bulletPrefab;
+                staff.bulletSpeed = w.bulletSpeed;
+                staff.bulletDamage = w.damage;
+                staff.bulletLifetime = w.lifetime;
+
+                staff.attackCooldown = Mathf.Max(0.05f, w.meleeCooldown); // или отдельное поле
+                staff.shootDelay = 0.08f; // можно тоже вынести в слот
+            }
+            return;
+        }
+        else
+        {
+            if (staff != null) staff.enabled = false;
+        }
 
         // 3) Enable correct combat mode
         if (w.isMelee)

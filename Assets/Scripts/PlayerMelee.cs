@@ -31,6 +31,7 @@ public class PlayerMelee : MonoBehaviour
     SpriteRenderer sr;
     Coroutine swingRoutine;
 
+
     void Awake()
     {
         anim = GetComponent<Animator>();
@@ -58,7 +59,6 @@ public class PlayerMelee : MonoBehaviour
         }
     }
 
-    // ✅ вызывай это из Animation Event на клипе атаки
     public void SpawnMeleeHitbox()
     {
         bool left = sr != null && sr.flipX;
@@ -113,29 +113,38 @@ public class PlayerMelee : MonoBehaviour
 
     IEnumerator SwingZ(Transform weapon, bool left)
     {
-        float t = 0f;
+        if (weapon == null) yield break;
 
-        // базовый поворот (на случай если оружие уже было повернуто)
+        float t = 0f;
         Quaternion baseRot = weapon.localRotation;
 
-        // направление взмаха можно чуть инвертировать для левой стороны, если захочешь
         float a0 = swingStartZ;
         float a1 = swingEndZ;
 
         while (t < swingDuration)
         {
+            if (weapon == null) yield break;
+
             t += Time.deltaTime;
             float k = Mathf.Clamp01(t / swingDuration);
             float kk = swingCurve.Evaluate(k);
 
             float ang = Mathf.Lerp(a0, a1, kk);
-
-            // применяем поверх базового
             weapon.localRotation = baseRot * Quaternion.Euler(0, 0, ang);
+
             yield return null;
         }
 
-        // возвращаем обратно
-        weapon.localRotation = baseRot;
+        if (weapon != null)
+            weapon.localRotation = baseRot;
     }
+    void OnDisable()
+    {
+        if (swingRoutine != null)
+        {
+            StopCoroutine(swingRoutine);
+            swingRoutine = null;
+        }
+    }
+
 }

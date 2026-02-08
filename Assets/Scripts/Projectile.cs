@@ -36,7 +36,14 @@ public class Projectile : MonoBehaviour
     public void SetDirection(Vector2 newDirection)
     {
         direction = newDirection.normalized;
+
+        // сохраняем текущий масштаб и просто меняем знак X
+        Vector3 s = transform.localScale;
+        float ax = Mathf.Abs(s.x);
+        s.x = (direction.x < 0) ? -ax : ax;
+        transform.localScale = s;
     }
+
 
     void OnTriggerEnter2D(Collider2D other)
     {
